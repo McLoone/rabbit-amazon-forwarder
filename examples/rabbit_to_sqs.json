@@ -5,7 +5,11 @@
       "name" : "test-rabbit",
       "connection" : "amqp://guest:guest@localhost:5672/",
       "topic" : "amq.topic",
+      "topicType" : "topic",
       "queue" : "test-queue",
+      "queueArgs" : {
+        "x-match" : "all"
+      },
       "routingKeys" : ["#"]
     },
     "destination" : {

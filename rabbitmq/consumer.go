@@ -29,6 +29,8 @@ type Consumer struct {
 	ExchangeName  string
 	QueueName     string
 	RoutingKeys   []string
+	QueueArgs     amqp.Table
+	ExchangeType  string
 }
 
 // parameters for starting consumer
@@ -48,7 +50,12 @@ func CreateConsumer(entry config.RabbitEntry) consumer.Client {
 		entry.RoutingKeys = append(entry.RoutingKeys, entry.RoutingKey)
 	}
 
-	return Consumer{entry.Name, entry.ConnectionURL, entry.ExchangeName, entry.QueueName, entry.RoutingKeys}
+	// set a default exchange type if one isn't set
+	if entry.ExchangeType == "" {
+		entry.ExchangeType = "topic"
+	}
+
+	return Consumer{entry.Name, entry.ConnectionURL, entry.ExchangeName, entry.QueueName, entry.RoutingKeys, entry.QueueArgs, entry.ExchangeType}
 }
 
 // Name consumer name
@@ -117,7 +124,7 @@ func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channe
 	deadLetterExchangeName := c.QueueName + "-dead-letter"
 	deadLetterQueueName := c.QueueName + "-dead-letter"
 	// regular exchange
-	if err = ch.ExchangeDeclare(c.ExchangeName, "topic", true, false, false, false, nil); err != nil {
+	if err = ch.ExchangeDeclare(c.ExchangeName, c.ExchangeType, true, false, false, false, nil); err != nil {
 		return failOnError(err, "Failed to declare an exchange:"+c.ExchangeName)
 	}
 	// dead-letter-exchange
@@ -140,7 +147,7 @@ func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channe
 	}
 	// bind all of the routing keys
 	for _, routingKey := range c.RoutingKeys {
-		if err = ch.QueueBind(c.QueueName, routingKey, c.ExchangeName, false, nil); err != nil {
+		if err = ch.QueueBind(c.QueueName, routingKey, c.ExchangeName, false, c.QueueArgs); err != nil {
 			return failOnError(err, "Failed to bind a queue:"+c.QueueName)
 		}
 	}
